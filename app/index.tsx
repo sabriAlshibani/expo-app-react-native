@@ -51,6 +51,7 @@ export default function Index() {
     try {
       const result = await axiosClient.post("/user-lists", {
         data: {
+          clerkId: user?.id,
           fullName: user?.fullName,
           userEmail: user?.primaryEmailAddress?.emailAddress,
         },
