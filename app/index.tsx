@@ -1,22 +1,91 @@
 import Heading from "@/components/Heading";
-import { useNavigation } from "expo-router";
-import { useEffect } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { axiosClient } from "@/services/GlobalApi";
+import { useSSO, useUser } from "@clerk/expo";
+import * as AuthSession from "expo-auth-session";
+import { useNavigation, useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
+import React, { useCallback, useEffect } from "react";
+import {
+  Image,
+  Platform,
+  Pressable,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+WebBrowser.maybeCompleteAuthSession();
+
+export const useWarmUpBrowser = () => {
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+
+    WebBrowser.warmUpAsync();
+
+    return () => {
+      WebBrowser.coolDownAsync();
+    };
+  }, []);
+};
 
 export default function Index() {
   const navigation = useNavigation();
+  const { startSSOFlow } = useSSO();
+  const router = useRouter();
+  const { user } = useUser();
+
+  useWarmUpBrowser();
 
   useEffect(() => {
     navigation.setOptions({
       headerShown: false,
     });
   }, []);
+  useEffect(() => {
+    if (user?.id) {
+      createNewUser();
+    }
+  }, [user?.id]);
+  const createNewUser = async () => {
+    try {
+      const result = await axiosClient.post("/user-lists", {
+        data: {
+          fullName: user?.fullName,
+          userEmail: user?.primaryEmailAddress?.emailAddress,
+        },
+      });
+
+      console.log("result", result.data);
+    } catch (error) {
+      console.log("Strapi error:", error);
+    }
+  };
+
+  const onPress = useCallback(async () => {
+    try {
+      const { createdSessionId, setActive } = await startSSOFlow({
+        strategy: "oauth_google",
+
+        redirectUrl: AuthSession.makeRedirectUri({
+          scheme: "expoapp",
+          path: "sso-callback",
+        }),
+      });
+
+      if (createdSessionId) {
+        await setActive!({ session: createdSessionId });
+
+        router.replace("/");
+      }
+    } catch (err) {
+      console.error("OAuth error:", err);
+    }
+  }, [startSSOFlow, router]);
 
   return (
     <SafeAreaView className="flex-1 bg-primary">
       <View className="flex-1 justify-between">
-        {/* Top Image */}
         <View className="items-center mt-10">
           <Image
             source={require("../assets/images/welcome-01.png")}
@@ -25,7 +94,6 @@ export default function Index() {
           />
         </View>
 
-        {/* Title */}
         <View className="items-center">
           <Heading label="مرحبا بك" className="text-white text-center" />
           <Heading
@@ -34,7 +102,6 @@ export default function Index() {
           />
         </View>
 
-        {/* Card */}
         <View className="bg-white mx-6 mb-10 p-6 rounded-3xl shadow-md">
           <Text
             className="text-center text-xl leading-8"
@@ -43,21 +110,21 @@ export default function Index() {
             كل ما تحتاجه بيتك ومطبخك وضيوفك تلقاه عندنا
           </Text>
 
-          {/* Google Button */}
-          <Pressable className="flex-row items-center justify-center gap-3 border border-gray-200 rounded-full p-4 mt-6 active:opacity-70">
+          <TouchableOpacity
+            onPress={onPress}
+            className="flex-row items-center justify-center gap-3 border border-gray-200 rounded-full p-4 mt-6"
+          >
             <Image
               source={require("../assets/images/google.png")}
               className="w-6 h-6"
-              resizeMode="contain"
             />
 
             <Text className="text-lg" style={{ fontFamily: "appFontBold" }}>
               التسجيل باستخدام جوجل
             </Text>
-          </Pressable>
+          </TouchableOpacity>
 
-          {/* Skip Button */}
-          <Pressable className="rounded-full p-4 mt-4 bg-primary active:opacity-80">
+          <Pressable className="rounded-full p-4 mt-4 bg-primary">
             <Text
               className="text-lg text-center text-white"
               style={{ fontFamily: "appFontBold" }}
