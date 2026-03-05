@@ -23,7 +23,12 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
+    },
+    "extra": {
+      "supportsRTL": true,
+      "forcesRTL": true
     },
     "plugins": [
       "expo-router",
@@ -38,7 +43,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,
