@@ -1,33 +1,16 @@
 import Heading from "@/components/Heading";
-import { axiosClient } from "@/services/GlobalApi";
+import { useHiddenHeader } from "@/hooks/useHiddenHeader";
+import { useWarmUpBrowser } from "@/hooks/useWarmUpBrowser";
+import { createNewUser } from "@/utils/createNewUser";
 import { useSSO, useUser } from "@clerk/expo";
 import * as AuthSession from "expo-auth-session";
 import { useNavigation, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useCallback, useEffect } from "react";
-import {
-  Image,
-  Platform,
-  Pressable,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Image, Pressable, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 WebBrowser.maybeCompleteAuthSession();
-
-export const useWarmUpBrowser = () => {
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-
-    WebBrowser.warmUpAsync();
-
-    return () => {
-      WebBrowser.coolDownAsync();
-    };
-  }, []);
-};
 
 export default function Index() {
   const navigation = useNavigation();
@@ -37,31 +20,17 @@ export default function Index() {
 
   useWarmUpBrowser();
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerShown: false,
-    });
-  }, []);
+  useHiddenHeader();
+
   useEffect(() => {
     if (user?.id) {
-      createNewUser();
+      createNewUser(
+        user.id,
+        user?.fullName || "unkown user",
+        user?.primaryEmailAddress?.emailAddress || "",
+      );
     }
   }, [user?.id]);
-  const createNewUser = async () => {
-    try {
-      const result = await axiosClient.post("/user-lists", {
-        data: {
-          clerkId: user?.id,
-          fullName: user?.fullName,
-          userEmail: user?.primaryEmailAddress?.emailAddress,
-        },
-      });
-
-      console.log("result", result.data);
-    } catch (error) {
-      console.log("Strapi error:", error);
-    }
-  };
 
   const onPress = useCallback(async () => {
     try {
@@ -77,7 +46,7 @@ export default function Index() {
       if (createdSessionId) {
         await setActive!({ session: createdSessionId });
 
-        router.replace("/");
+        router.replace("/(tabs)/Home");
       }
     } catch (err) {
       console.error("OAuth error:", err);
